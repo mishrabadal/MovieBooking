@@ -15,7 +15,8 @@ const App = () => {
   return (
     <>
      <Toaster position="top-right" />
-    {/* {toast.success("Login successful")} */}
+ 
+    
        {!isAdminRoute && <Navbar />}
        
       <Routes>
