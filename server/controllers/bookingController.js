@@ -1,5 +1,5 @@
 import Show from "../models/Show.js"
-
+import Booking from "../models/Booking.js"
 // Function to check availability of selected seats for a movie
 const checkSeatsAvailability = async (showId, selectedSeats)=>{
     try {
@@ -34,6 +34,7 @@ export const createBooking = async (req, res)=>{
         const showData = await Show.findById(showId).populate('movie');
 
         // Create a new booking
+        
         const booking = await Booking.create({
             user: userId,
             show: showId,

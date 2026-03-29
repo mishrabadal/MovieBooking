@@ -1,20 +1,34 @@
 import React, { useEffect, useState } from "react";
+import toast from 'react-hot-toast';
 import Loading from "../../components/Loading";
 import { dummyShowsData } from "../../assets/assets";
 import Title from "./Title";
 import { dateFormat } from "../../lib/dateFormat";
 import { CheckIcon, DeleteIcon, StarIcon } from "lucide-react";
 import { kConverter } from "../../lib/kConvertor";
+import { useAppContext } from "../../context/AppContext";
 const addShows = () => {
+  const { axios, getToken, user,image_base_url } = useAppContext();
   const currency = import.meta.env.VITE_CURRENCY;
   const [nowPlayingMovies, setNowPlayingMovies] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [dateTimeSelection, setDateTimeSelection] = useState({});
   const [dateTimeInput, setDateTimeInput] = useState("");
   const [showPrice, setShowPrice] = useState("");
+  const [addingShow, setAddingShow]=useState(false)
 
   const fetchNowPlayingMovies = async () => {
-    setNowPlayingMovies(dummyShowsData);
+    try {
+      const { data } = await axios.get("/api/show/now-playing", {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (data.success) {
+        setNowPlayingMovies(data.movies);
+      }
+    } catch (error) {
+      console.error("Error fetching movies:", error);
+    }
+    // setNowPlayingMovies(dummyShowsData);
   };
   const handleDateTimeAdd = () => {
     if (!dateTimeInput) return;
@@ -30,24 +44,66 @@ const addShows = () => {
     });
   };
 
-const handleRemoveTime = (date, time) => {
-  setDateTimeSelection((prev) => {
-    const filteredTimes = prev[date].filter((t) => t !== time);
-    if (filteredTimes.length === 0) {
-      const { [date]: _, ...rest } = prev;
-      return rest;
+  const handleRemoveTime = (date, time) => {
+    setDateTimeSelection((prev) => {
+      const filteredTimes = prev[date].filter((t) => t !== time);
+      if (filteredTimes.length === 0) {
+        const { [date]: _, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [date]: filteredTimes,
+      };
+    });
+  };
+
+
+
+const handleSubmit = async ()=>{
+ try {
+    setAddingShow(true)
+
+    if(!selectedMovie || Object.keys(dateTimeSelection).length === 0 ||
+    !showPrice){
+        return toast('Missing required fields');
     }
-    return {
-      ...prev,
-      [date]: filteredTimes,
-    };
-  });
-};
+
+    const showsInput = Object.entries(dateTimeSelection).map(([date, time])=> ({date, time}));
+
+    const payload = {
+        movieId: selectedMovie,
+        showsInput,
+        showPrice: Number(showPrice)
+    }
+
+    const { data } = await axios.post('/api/show/add', payload, {headers: {
+    Authorization: `Bearer ${await getToken()}` }})
+
+    if(data.success){
+        toast.success(data.message)
+        setSelectedMovie(null)
+        setDateTimeSelection({})
+        setShowPrice("")
+    }else{
+        toast.error(data.message)
+    }
+
+} catch (error) {
+    console.error("Submission error:", error);
+    toast.error('An error occurred. Please try again.')
+}
+setAddingShow(false)
+}
+
 
 
   useEffect(() => {
-    fetchNowPlayingMovies();
-  }, []);
+    if(user)
+    {
+      fetchNowPlayingMovies();
+    }
+  }, [user]);
 
   return nowPlayingMovies.length > 0 ? (
     <>
@@ -63,7 +119,7 @@ const handleRemoveTime = (date, time) => {
             >
               <div className="relative rounded-lg overflow-hidden">
                 <img
-                  src={movie.poster_path}
+                  src={image_base_url+movie.poster_path}
                   alt=""
                   className="w-full object-cover brightness-90"
                 />
@@ -128,33 +184,36 @@ const handleRemoveTime = (date, time) => {
 
       {/* display selected times */}
       {/* Display Selected Times */}
-{Object.keys(dateTimeSelection).length > 0 && (
-  <div className="mt-6">
-    <h2 className="mb-2">Selected Date-Time</h2>
-    <ul className="space-y-3">
-      {Object.entries(dateTimeSelection).map(([date, times]) => (
-        <li key={date}>
-          <div className="font-medium">{date}</div>
-          <div className="flex flex-wrap gap-2 mt-1 text-sm">
-            {times.map((time) => (
-              <div key={time} className="border border-primary px-2 py-1 flex items-center rounded">
-                <span>{time}</span>
-                <DeleteIcon
-                  onClick={() => handleRemoveTime(date, time)} 
-                  width={15} 
-                  className="ml-2 text-red-500 hover:text-red-700 cursor-pointer" 
-                />
-              </div>
+      {Object.keys(dateTimeSelection).length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-2">Selected Date-Time</h2>
+          <ul className="space-y-3">
+            {Object.entries(dateTimeSelection).map(([date, times]) => (
+              <li key={date}>
+                <div className="font-medium">{date}</div>
+                <div className="flex flex-wrap gap-2 mt-1 text-sm">
+                  {times.map((time) => (
+                    <div
+                      key={time}
+                      className="border border-primary px-2 py-1 flex items-center rounded"
+                    >
+                      <span>{time}</span>
+                      <DeleteIcon
+                        onClick={() => handleRemoveTime(date, time)}
+                        width={15}
+                        className="ml-2 text-red-500 hover:text-red-700 cursor-pointer"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </li>
             ))}
-          </div>
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
-<button className="bg-primary text-white px-8 py-2 mt-6 rounded hover:bg-primary/90 transition-all cursor-pointer">
-  Add Show
-</button>
+          </ul>
+        </div>
+      )}
+      <button onClick={handleSubmit} disabled={addingShow} className="bg-primary text-white px-8 py-2 mt-6 rounded hover:bg-primary/90 transition-all cursor-pointer">
+        Add Show
+      </button>
     </>
   ) : (
     <Loading />

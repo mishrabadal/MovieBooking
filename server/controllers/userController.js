@@ -2,6 +2,7 @@ import Booking from "../models/Booking.js";
 import {
     clerkClient
 } from "@clerk/express";
+import Movie from "../models/Movie.js";
 // API Controller Function to Get User Bookings
 export const getUserBookings = async (req, res) => {
     try {
