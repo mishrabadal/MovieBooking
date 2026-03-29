@@ -29,7 +29,7 @@ export const stripeWebhooks = async (request, response) => {
                     isPaid: true,
                     paymentLink: ""
                 })
-
+                console.log("code executed")
                 break;
             }
 
